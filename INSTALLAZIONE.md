@@ -1,74 +1,82 @@
-# Installazione — gianlucafaella CMS
+# Installazione — LibreCMS
 
-Contenuto della consegna:
+Contenuto del pacchetto:
 
 | File | A cosa serve |
 |---|---|
-| `gianlucafaella-cms.zip` | Il CMS completo (codice, asset, editor compilato). Nessuna dipendenza da installare. |
-| `setup.php` | Estrazione guidata, solo se il pannello dell'hosting non sa estrarre gli ZIP. |
-| `CREDENZIALE-INSTALLAZIONE.txt` | Token monouso per l'installer. **Non caricarlo sul server**, tienilo separato dallo ZIP. |
-| `gianlucafaella-cms-update-X.Y.Z.zip` | Pacchetto di aggiornamento firmato (non serve per la prima installazione). |
+| `librecms.zip` | Il CMS completo: codice, asset, editor compilato. Non ci sono dipendenze da installare. |
+| `setup.php` | Estrazione guidata, da usare solo se il pannello dell'hosting non sa estrarre gli ZIP. |
+| `librecms-update-X.Y.Z.zip` | Pacchetto di aggiornamento firmato. Non serve per la prima installazione. |
 | `SHA256SUMS.txt` | Impronte per verificare che i file non siano stati alterati. |
+| `docs/` | README (moduli, requisiti, versioni provate) e API per Claude Code. |
+| `LICENSE.txt` | Licenza MIT: puoi usare LibreCMS liberamente, anche per siti commerciali. |
 
-Non servono SSH, Composer, npm o comandi sul server.
+Non servono SSH, Composer, npm o comandi sul server. Prima di iniziare controlla i requisiti nel README: PHP 8.2+ (consigliato 8.4), MySQL o MariaDB, HTTPS.
 
-## Requisiti dell'hosting
+## Il codice di installazione
 
-- PHP **8.4 o superiore** con estensioni: pdo_mysql, openssl, sodium, mbstring, fileinfo, json, session; consigliate gd (con WebP) e zip.
-- MySQL 8+ o MariaDB 10.6+ con un database vuoto e un utente con permessi CREATE, ALTER, INDEX, INSERT, UPDATE, DELETE, SELECT, DROP, REFERENCES.
-- Apache o LiteSpeed con `.htaccess` attivo (mod_rewrite). Con nginx la cartella `app/` deve stare fuori da `public_html` (vedi sotto).
-- Certificato **HTTPS** attivo sul dominio prima di iniziare.
-- Limite upload consigliato: `upload_max_filesize` ≥ 10M (immagini e pacchetti di aggiornamento).
+Il pacchetto è uguale per tutti, quindi non contiene un codice. Lo crea il tuo sito la prima volta che apri l'installer e lo scrive in un file che solo chi gestisce l'hosting può aprire. In questo modo nessun altro può installare il CMS sul tuo dominio nel tempo che passa tra il caricamento e l'installazione.
 
-L'installer verifica tutto con controlli reali (anche con richieste HTTP verso il sito stesso) e **si blocca** se i file riservati risultano scaricabili.
+Per trovarlo:
 
-## Prima di iniziare: il vecchio sito WordPress
+1. Apri il pannello del tuo hosting e poi il **File Manager** (oppure un programma FTP come FileZilla).
+2. Entra nella cartella del sito (di solito `public_html`), poi in `app` e poi in `config`.
+3. Apri il file `install-token.php` (di solito: clic destro → *Modifica* o *Visualizza*).
+4. Copia il codice di 16 caratteri, simile a `K7QM-2XPA-9HTD-R4WN`, e incollalo nell'installer. Maiuscole, spazi e trattini non contano.
 
-1. Dal WordPress attuale: Strumenti → Esporta (backup dei contenuti) e un backup completo da pannello hosting.
-2. Svuota `public_html` (o rinominala) solo dopo aver salvato tutto. Gli URL del nuovo sito sono compatibili con quelli vecchi (stessi slug, redirect per categorie e pagine).
+L'installer mostra le stesse istruzioni, con il percorso esatto del file. Se l'hai cancellato per errore, ricarica la pagina: viene creato un nuovo file con un nuovo codice. Il codice vale una sola volta e il file si cancella da solo a fine installazione.
 
 ## Modalità A — Estrazione dal pannello hosting (consigliata)
 
-1. Carica `gianlucafaella-cms.zip` in `public_html` dal File Manager.
-2. Estrai l'archivio lì (devono comparire `index.php`, `.htaccess`, `assets/`, `media/`, `app/`).
+1. Crea dal pannello dell'hosting un database MySQL o MariaDB vuoto e un utente con tutti i permessi su quel database. Annota host, nome, utente e password.
+2. Carica `librecms.zip` in `public_html` dal File Manager ed estrailo lì. Devono comparire `index.php`, `.htaccess`, `assets/`, `media/` e `app/`.
 3. **Elimina lo ZIP** dal server.
-4. Apri `https://tuodominio/install/` e inserisci il token di `CREDENZIALE-INSTALLAZIONE.txt`.
-5. Segui gli 8 passi: compatibilità → database → tabelle → dati del sito → amministratore con **2FA obbligatoria** (inquadra il QR con un'app Authenticator e salva i 10 codici di recupero) → verifica finale → completamento.
+4. Apri `https://tuodominio/install/` e inserisci il **codice di installazione** (vedi sopra: è nel file `app/config/install-token.php`).
+5. Segui i passi successivi:
+   1. compatibilità;
+   2. database;
+   3. tabelle;
+   4. dati del sito e **scelta della configurazione** (Portfolio, Blog o Podcast);
+   5. amministratore con **2FA obbligatoria**: inquadra il QR con un'app Authenticator e salva i 10 codici di recupero;
+   6. verifica finale;
+   7. completamento.
+
+Alla fine l'installer cancella il file del codice e si blocca: `/install/` risponde 404.
 
 ## Modalità B — `setup.php` (se il pannello non estrae gli ZIP)
 
-1. Carica `gianlucafaella-cms.zip` **e** `setup.php` nella stessa cartella (`public_html`), in modalità binaria.
-2. Apri `https://tuodominio/setup.php` e inserisci il token.
-3. Lo script verifica che l'archivio sia esattamente quello della build (impronta SHA-256), controlla percorsi, dimensioni e spazio, estrae i file, **elimina lo ZIP e se stesso** e apre l'installer (stesso token).
-4. Se compare l'avviso che `setup.php` non è stato eliminato, cancellalo via FTP (resta comunque disattivato).
+1. Carica `librecms.zip` **e** `setup.php` nella stessa cartella (`public_html`), in modalità binaria.
+2. Apri `https://tuodominio/setup.php`. Lo script crea accanto a sé il file `setup-token.php`: aprilo con il File Manager e copia il codice di 16 caratteri, come sopra.
+3. Lo script controlla che l'archivio sia esattamente quello del pacchetto (impronta SHA-256), poi verifica percorsi, dimensioni e spazio. Quindi estrae i file, **elimina lo ZIP, il file del codice e se stesso** e apre l'installer. Da lì prosegui dal punto 4 della Modalità A.
+4. Se compare l'avviso che `setup.php` non è stato eliminato, cancellalo via FTP. Resta comunque disattivato.
 
-`setup.php` funziona solo in HTTPS, accetta solo il suo ZIP, limita i tentativi del token e non fa nulla se il CMS è già presente.
+`setup.php` funziona solo in HTTPS, accetta solo il suo ZIP, limita i tentativi e non fa nulla se il CMS è già presente.
 
 ## Configurazione più sicura (facoltativa): `app/` fuori da `public_html`
 
-Se l'hosting permette cartelle sopra `public_html`:
+Se l'hosting permette cartelle sopra `public_html`, sposta la cartella `app/` un livello sopra, accanto a `public_html`: il front controller la trova da solo.
 
-1. Sposta la cartella `app/` un livello sopra (accanto a `public_html`). Il front controller la trova da solo in `../app`.
-2. In alternativa crea `public_html/paths.php` con `<?php return ['app' => '/percorso/assoluto/app'];`.
+In alternativa crea `public_html/paths.php` con `<?php return ['app' => '/percorso/assoluto/app'];`.
 
 Con nginx questa configurazione è obbligatoria.
 
-## Trasferire i contenuti dal PC al sito online
-
-I contenuti preparati in locale (articoli importati da WordPress, immagini, pagine) si trasferiscono con un backup:
-
-1. In locale: `/admin` → **Sistema** → **Crea backup** (con media) → **Scarica**.
-2. Online, dopo l'installazione: `/admin` → **Sistema** → **Ripristina da file**. Se il file supera il limite di upload, copialo via FTP in `app/storage/backups/` e ripristinalo dall'elenco.
-
-Il ripristino sostituisce contenuti, media, impostazioni del sito e redirect; **non tocca utenti, password, 2FA e token**. Prima crea automaticamente un backup di sicurezza dello stato attuale.
-
 ## Dopo l'installazione
 
-- Accedi a `https://tuodominio/admin/`.
-- In **Sicurezza** crea il token API per Claude Code (vedi `docs/API.md` nel repository).
-- In **Sistema** crea un primo backup e scaricalo.
-- Le pubblicazioni programmate vengono rese visibili alla prima visita dopo l'orario previsto (nessun cron necessario): l'orario esatto al secondo non è garantito.
+1. Accedi a `https://tuodominio/admin/`. Al primo accesso si apre la **Guida**: cinque schermate su come è fatto il pannello della configurazione scelta, i primi passi, sicurezza e aggiornamenti, e come collegare **Claude Code** con un token API. La riapri quando vuoi dalla voce **Guida** del menu.
+2. In **Aspetto** imposta nome, logo, favicon e colori.
+3. In **Moduli** accendi le funzioni che ti servono.
+4. Le pagine di esempio sono già create e vanno completate. La **Privacy policy** resta in bozza finché non la scrivi tu. La **Cookie policy** descrive i soli cookie tecnici del CMS.
+5. In **Sistema** crea un primo backup e scaricalo.
+6. Le pubblicazioni programmate diventano visibili alla prima visita dopo l'orario previsto, senza bisogno di un cron. Per questo l'orario non è preciso al secondo.
 
-## Requisiti da verificare sul server reale
+## Controlli che si possono fare solo sul server reale
 
-Non verificabili in sviluppo, controllati dall'installer al passo 2 e 7: rispetto del `.htaccess`, protezione di `app/` dentro `public_html`, nessuna esecuzione di PHP in `/media`, HTTPS, versione e privilegi del database, limiti di upload. Se un controllo fallisce l'installazione si ferma con l'indicazione del requisito mancante.
+L'installer, ai passi «Compatibilità» e «Verifica», controlla:
+- che il `.htaccess` venga rispettato;
+- che `app/` sia protetta;
+- che in `/media` non si possa eseguire PHP;
+- HTTPS;
+- versione e privilegi del database;
+- i limiti di upload.
+
+Se un controllo fallisce, l'installazione si ferma e indica il requisito mancante.
